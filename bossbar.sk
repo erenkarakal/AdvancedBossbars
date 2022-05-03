@@ -1,0 +1,179 @@
+
+# Documentation: https://github.com/erenkarakal/AdvancedBossbars/wiki
+
+options:
+  # How often should the bossbars be saved?
+  bossbar.save.delay: 5 minutes
+
+# Don't touch anything below unless you know what you are doing.
+# Don't add code here, make a new file.
+
+import:
+  org.bukkit.Bukkit
+  org.bukkit.boss.BossBar
+  org.bukkit.boss.BarColor
+  org.bukkit.boss.BarStyle
+  ch.njol.skript.Skript
+  ch.njol.skript.lang.parser.ParserInstance
+
+# stuff
+
+on join:
+  loop {bossbar::*}:
+    {bossbar::%loop-index%}.addPlayer(player) if {bossbar::%loop-index%::players::*} contains player's name
+
+on skript stop:
+  saveBossbars()
+
+every {@bossbar.save.delay}:
+  saveBossbars()
+
+on skript start:
+  loadBossbars()
+
+# syntaxes (very cool)
+
+effect [dotMat] show [new] boss[ ]bar (titled|named) %string% colo[u]red %color% with style %string% with animation %string% for %timespan% to %players%:
+  trigger:
+    stop if expr-2 isn't blue, green, pink, purple, red, white or yellow
+    stop if expr-3 isn't "SOLID", "SEGMENTED_6", "SEGMENTED_10", "SEGMENTED_12" or "SEGMENTED_20"
+    stop if expr-4 isn't "tictac", "hourglass" or "none"
+    set {_color} to uppercase "%expr-2%"
+    showBossbar((expr-1), {_color}, (expr-3), (expr-6), (expr-4), (expr-5))
+
+
+effect [dotMat] create [[a] new] boss[ ]bar with id %string% (titled|named) %string% colo[u]red %color% with style %string%:
+  trigger:
+    stop if {bossbar::%expr-1%} is set
+    stop if expr-3 isn't blue, green, pink, purple, red, white or yellow
+    stop if expr-4 isn't "SOLID", "SEGMENTED_6", "SEGMENTED_10", "SEGMENTED_12" or "SEGMENTED_20"
+    set {_color} to uppercase "%expr-3%"
+    set {bossbar::%expr-1%} to (Bukkit.createBossBar((expr-2), BarColor.valueOf({_color}), BarStyle.valueOf((expr-4))))
+
+effect [dotMat] display boss[ ]bar with id %string% to %players%:
+  trigger:
+    stop if {bossbar::%expr-1%} is not set
+    {bossbar::%expr-1%}.addPlayer(expr-2)
+    add "%expr-2%" to {bossbar::%expr-1%::players::*}
+
+effect [dotMat] hide boss[ ]bar with id %string% from %players%:
+  trigger:
+    stop if {bossbar::%expr-1%} is not set
+    {bossbar::%expr-1%}.removePlayer(expr-2)
+    remove "%expr-2%" from {bossbar::%expr-1%::players::*}
+
+effect [dotMat] delete boss[ ]bar with id %string%:
+  trigger:
+    stop if {bossbar::%expr-1%} is not set
+    {bossbar::%expr-1%}.removeAll
+    delete {bossbar::%expr-1%}
+
+expression [dotMat] (progress|percentage) of boss[ ]bar with id %string%:
+  return type: number
+  get:
+    stop if {bossbar::%expr-1%} is not set
+    set {_progress} to {bossbar::%expr-1%}.getProgress()
+    return ({_progress} * 100)
+  set number:
+    stop if {bossbar::%expr-1%} is not set
+    set {_progress} to change value / 100
+    set {_progress} to min(max({_progress}, 0), 1)
+    {bossbar::%expr-1%}.setProgress({_progress})
+  add number:
+    stop if {bossbar::%expr-1%} is not set
+    set {_i} to change value / 100
+    set {_progress} to min(max({bossbar::%expr-1%}.getProgress() + {_i}, 0), 1)
+    {bossbar::%expr-1%}.setProgress({_progress})
+  remove number:
+    stop if {bossbar::%expr-1%} is not set
+    set {_i} to change value / 100
+    set {_progress} to min(max({bossbar::%expr-1%}.getProgress() - {_i}, 0), 1)
+    {bossbar::%expr-1%}.setProgress({_progress})
+
+expression [dotMat] style of boss[ ]bar with id %string%:
+  return type: string
+  get:
+    stop if {bossbar::%expr-1%} is not set
+    return {bossbar::%expr-1%}.getStyle()
+  set string:
+    stop if {bossbar::%expr-1%} is not set
+    stop if change value isn't "SOLID", "SEGMENTED_6", "SEGMENTED_10", "SEGMENTED_12" or "SEGMENTED_20"
+    {bossbar::%expr-1%}.setStyle(BarStyle.valueOf("%change value%"))
+
+expression [dotMat] colo[u]r of boss[ ]bar with id %string%:
+  return type: color
+  get:
+    stop if {bossbar::%expr-1%} is not set
+    return lowercase "%{bossbar::%expr-1%}.getColor()%" parsed as color
+  set color:
+    stop if {bossbar::%expr-1%} is not set
+    stop if change value isn't blue, green, pink, purple, red, white or yellow
+    set {_color} to BarColor.valueOf(uppercase "%change value%")
+    {bossbar::%expr-1%}.setColor({_color})
+
+expression [dotMat] (title|name) of bossbar with id %string%:
+  return type: string
+  get:
+    stop if {bossbar::%expr-1%} is not set
+    return {bossbar::%expr-1%}.getTitle()
+  set string:
+    stop if {bossbar::%expr-1%} is not set
+    {bossbar::%expr-1%}.setTitle(change value)
+
+# bossbar core (pain)
+
+function showBossbar(text: string, color: string, style: string, p: player, animation: string, time: timespan):
+  size of online players > 0
+  set {_bossbar} to (Bukkit.createBossBar({_text}, BarColor.valueOf({_color}), BarStyle.valueOf({_style})))
+  {_bossbar}.addPlayer({_p})
+  set {_time} to rounded down ({_time}.getTicks_i() / 20)
+  if {_animation} = "tictac":
+    set {_bossbar::remove} to 1 / {_time}
+    while {_bossbar} is set:
+      wait 1 second
+      set {_bossbar::value} to {_bossbar}.getProgress()
+      if "%{_bossbar::value}%" = "0":
+        {_bossbar}.removeAll()
+        delete {_bossbar}
+      subtract {_bossbar::remove} from {_bossbar::value}
+      set {_bossbar::value} to 0 if {_bossbar::value} < 0
+      {_bossbar}.setProgress({_bossbar::value})
+  else if {_animation} = "hourglass":
+    set {_bossbar::remove} to 0.05 / {_time}
+    while {_bossbar} is set:
+      wait 1 tick
+      set {_bossbar::value} to {_bossbar}.getProgress()
+      if "%{_bossbar::value}%" = "0":
+        {_bossbar}.removeAll()
+        delete {_bossbar}
+      subtract {_bossbar::remove} from {_bossbar::value}
+      set {_bossbar::value} to 0 if {_bossbar::value} < 0
+      {_bossbar}.setProgress({_bossbar::value})
+  else if {_animation} = "none":
+    wait "%{_time}% seconds" parsed as timespan
+    {_bossbar}.removeAll()
+
+# saving system
+
+function saveBossbars():
+  delete {bossbar.save::*}
+  loop {bossbar::*}:
+    set {_color} to "%loop-value.getColor()%"
+    set {_style} to "%loop-value.getStyle()%"
+    set {_progress} to "%loop-value.getProgress()%"
+    set {_title} to "%loop-value.getTitle()%"
+    set {_temp.players::*} to loop-value.getPlayers()
+    loop {_temp.players::*}:
+      set {_i} to "%loop-value-2%"
+      replace all "[CraftPlayer{name=" and "}]" in {_i} with ""
+      add {_i} to {_players::*}
+    set {bossbar.save::%loop-index%} to "%{_title}%|;;;;;|%{_color}%|;;;;;|%{_style}%|;;;;;|%{_progress}%|;;;;;|%{_players::*}%"
+
+function loadBossbars():
+  delete {bossbar::*}
+  loop {bossbar.save::*}:
+    set {_dat::*} to loop-value split at "|;;;;;|"
+    create a new bossbar with id loop-index titled {_dat::1} colored (lowercase {_dat::2} parsed as color) with style {_dat::3}
+    {bossbar::%loop-index%}.setProgress({_dat::4} parsed as number)
+    replace all " and" in {_dat::5} with ","
+    set {bossbar::%loop-index%::players::*} to {_dat::5} split at ", "
